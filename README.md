@@ -1,29 +1,76 @@
-System Monitoring Dashboard
 
-A professional system monitoring solution built with Python, Prometheus, and Grafana.
+# System Monitoring Dashboard
 
-🚀 Features
+A professional system monitoring solution built with **Python**, **Prometheus**, and **Grafana**.
 
-Real-time monitoring of CPU, memory, disk, and network usage
+## 🚀 Features
 
-Python-based custom metrics exporter
+* Real-time monitoring of CPU, memory, disk, and network usage
+* Python-based custom metrics exporter
+* Prometheus for efficient metrics collection and storage
+* Grafana dashboards for rich visualization
+* Systemd service integration for automatic startup
 
-Prometheus for efficient metrics collection and storage
+## 📊 Technologies Used
 
-Grafana dashboards for rich visualization
+* **Python 3** (with `psutil`, `prometheus-client`)
+* **Prometheus** (metrics storage & querying)
+* **Grafana** (visualization and dashboards)
+* **Node Exporter** (system metrics exporter)
+* **Systemd** (service management)
 
-Systemd service integration for automatic startup
+## 🛠️ Installation
 
-📊 Technologies Used
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/monitoring-system.git
+cd monitoring-system
 
-Python 3 (with psutil, prometheus-client)
+# Make installation script executable
+chmod +x scripts/install_monitor.sh
 
-Prometheus (metrics storage & querying)
+# Run installation
+./scripts/install_monitor.sh
+```
 
-Grafana (visualization and dashboards)
+## 📈 Metrics Collected
 
-Node Exporter (system metrics exporter)
+* `system_cpu_percent` → CPU usage percentage
+* `system_memory_percent` → Memory usage percentage
+* `system_disk_percent` → Disk usage per mount point
+* `system_network_sent_bytes` → Network bytes sent
+* `system_network_recv_bytes` → Network bytes received
 
-Systemd (service management)
+## 🎯 Usage
 
-🛠️ Installation
+```bash
+# Start the monitoring system
+./scripts/start_monitor.sh
+```
+
+Access dashboards:
+
+* **Grafana** → [http://localhost:3000](http://localhost:3000)
+* **Prometheus** → [http://localhost:9090](http://localhost:9090)
+* **Python Metrics Exporter** → [http://localhost:8000](http://localhost:8000)
+
+## 📂 Project Structure
+
+```
+monitoring-system/
+├── src/           # Python source code
+├── config/        # Configuration files (Prometheus, systemd units, etc.)
+├── scripts/       # Installation and management scripts
+├── docs/          # Documentation
+└── .github/       # CI/CD workflows
+```
+
+## 🤝 Contributing
+
+Contributions are welcome!
+Please open an issue or submit a pull request with improvements.
+
+## 📝 License
+
+This project is licensed under the **MIT License**.
+
