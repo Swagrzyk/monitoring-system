@@ -25,7 +25,7 @@ Professional system monitoring solution built with **Python**, **Prometheus**, a
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/monitoring-system.git
+git clone https://github.com/swagrzyk/monitoring-system.git
 cd monitoring-system
 
 # Install dependencies and Python environment
