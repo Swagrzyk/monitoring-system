@@ -20,11 +20,33 @@ data:
       "tags": ["slo", "monitoring-system"],
       "panels": [
         {
+          "id": 10,
+          "type": "alertlist",
+          "title": "Active Alerts",
+          "description": "Live state of the SLO burn-rate alerts, evaluated by Prometheus and read by Grafana from the Prometheus datasource (jsonData.manageAlerts) - no separate Alertmanager needed just to see this.",
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 6 },
+          "options": {
+            "dashboardAlerts": false,
+            "groupBy": [],
+            "groupMode": "default",
+            "maxItems": 20,
+            "sortOrder": 1,
+            "stateFilter": {
+              "error": true,
+              "firing": true,
+              "noData": false,
+              "normal": true,
+              "pending": true
+            },
+            "viewMode": "list"
+          }
+        },
+        {
           "id": 1,
           "type": "stat",
           "title": "Availability (30d)",
           "description": "SLI: fraction of Prometheus scrapes against the exporter that succeeded, over a rolling 30-day window. SLO target: 99.5%.",
-          "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+          "gridPos": { "x": 0, "y": 6, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "100 * (1 - slo:exporter_availability_errors:ratio_rate30d)", "refId": "A" }
@@ -55,7 +77,7 @@ data:
           "type": "gauge",
           "title": "Error Budget Remaining (30d)",
           "description": "100% = no failed scrapes in the window at all. 0% = the 99.5% SLO's entire error budget has been consumed.",
-          "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+          "gridPos": { "x": 8, "y": 6, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "100 * (1 - (slo:exporter_availability_errors:ratio_rate30d / 0.005))", "refId": "A" }
@@ -86,7 +108,7 @@ data:
           "type": "stat",
           "title": "Current Burn Rate (1h)",
           "description": "Multiple of the sustainable burn rate. 1x exactly consumes the 30-day budget on schedule; 14.4x exhausts it in about 2 days (see the ExporterAvailabilityBurnRateFast alert).",
-          "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+          "gridPos": { "x": 16, "y": 6, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "slo:exporter_availability_errors:ratio_rate1h / 0.005", "refId": "A" }
@@ -118,7 +140,7 @@ data:
           "type": "timeseries",
           "title": "Error Budget Burn Rate (1h vs 6h windows)",
           "description": "Multi-window burn rate used by the alerting rules. Sustained crossings of the 14.4x / 6x lines are what page; see prometheus/slo_rules.yml.",
-          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "slo:exporter_availability_errors:ratio_rate1h / 0.005", "legendFormat": "1h burn rate", "refId": "A" },
@@ -154,7 +176,7 @@ data:
           "type": "timeseries",
           "title": "Scrape Success (up)",
           "description": "Raw SLI signal: 1 = scrape succeeded, 0 = scrape failed.",
-          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "up{job=\"python-monitor\"}", "legendFormat": "exporter up", "refId": "A" }
@@ -176,13 +198,13 @@ data:
           "id": 6,
           "type": "row",
           "title": "Exporter Host Metrics",
-          "gridPos": { "x": 0, "y": 16, "w": 24, "h": 1 }
+          "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 }
         },
         {
           "id": 7,
           "type": "timeseries",
           "title": "CPU Usage",
-          "gridPos": { "x": 0, "y": 17, "w": 8, "h": 8 },
+          "gridPos": { "x": 0, "y": 23, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "system_cpu_percent", "legendFormat": "cpu %", "refId": "A" }
@@ -201,7 +223,7 @@ data:
           "id": 8,
           "type": "timeseries",
           "title": "Memory Usage",
-          "gridPos": { "x": 8, "y": 17, "w": 8, "h": 8 },
+          "gridPos": { "x": 8, "y": 23, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "system_memory_percent", "legendFormat": "memory %", "refId": "A" }
@@ -220,7 +242,7 @@ data:
           "id": 9,
           "type": "timeseries",
           "title": "Disk Usage",
-          "gridPos": { "x": 16, "y": 17, "w": 8, "h": 8 },
+          "gridPos": { "x": 16, "y": 23, "w": 8, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "expr": "system_disk_percent", "legendFormat": "{{mountpoint}}", "refId": "A" }

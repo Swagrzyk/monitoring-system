@@ -17,3 +17,11 @@ data:
         url: http://prometheus.monitoring.svc.cluster.local:9090
         isDefault: true
         editable: false
+        jsonData:
+          # Lets Grafana list/display this Prometheus's own alerting rules
+          # (Status > Alerting shows them as "data source-managed" rules)
+          # instead of requiring alerts to be re-defined as Grafana-managed
+          # rules. Prometheus evaluates them; Grafana just reads the state.
+          manageAlerts: true
+          prometheusType: Prometheus
+          prometheusVersion: 2.55.1
