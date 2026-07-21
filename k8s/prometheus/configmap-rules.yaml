@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: monitoring-system
+data:
+  # Populated with SLO recording & alerting rules in a later step.
+  slo_rules.yml: |
+    groups: []

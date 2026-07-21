@@ -1,2 +1,2 @@
-prometheus-client
-psutil
+prometheus-client==0.22.1
+psutil==7.0.0
