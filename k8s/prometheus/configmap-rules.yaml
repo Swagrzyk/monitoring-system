@@ -7,6 +7,78 @@ metadata:
     app.kubernetes.io/name: prometheus
     app.kubernetes.io/part-of: monitoring-system
 data:
-  # Populated with SLO recording & alerting rules in a later step.
   slo_rules.yml: |
-    groups: []
+    # SLO: exporter availability
+    #   SLI  = fraction of Prometheus scrapes against the exporter that succeed (up{job="python-monitor"})
+    #   SLO  = 99.5% of scrapes succeed over a rolling 30-day window
+    #   error budget = 1 - 0.995 = 0.005 (0.5%)
+    #
+    # Alerting follows the multi-window, multi-burn-rate approach from the
+    # Google SRE Workbook (https://sre.google/workbook/alerting-on-slos/):
+    # a long window confirms the burn is sustained, a short window confirms
+    # it is still happening right now, so the alert clears quickly once the
+    # exporter recovers instead of staying red for the whole long window.
+    groups:
+      - name: exporter-availability-slo-recording
+        interval: 30s
+        rules:
+          - record: slo:exporter_availability_errors:ratio_rate5m
+            expr: 1 - avg_over_time(up{job="python-monitor"}[5m])
+          - record: slo:exporter_availability_errors:ratio_rate30m
+            expr: 1 - avg_over_time(up{job="python-monitor"}[30m])
+          - record: slo:exporter_availability_errors:ratio_rate1h
+            expr: 1 - avg_over_time(up{job="python-monitor"}[1h])
+          - record: slo:exporter_availability_errors:ratio_rate2h
+            expr: 1 - avg_over_time(up{job="python-monitor"}[2h])
+          - record: slo:exporter_availability_errors:ratio_rate6h
+            expr: 1 - avg_over_time(up{job="python-monitor"}[6h])
+          - record: slo:exporter_availability_errors:ratio_rate1d
+            expr: 1 - avg_over_time(up{job="python-monitor"}[1d])
+          - record: slo:exporter_availability_errors:ratio_rate3d
+            expr: 1 - avg_over_time(up{job="python-monitor"}[3d])
+          - record: slo:exporter_availability_errors:ratio_rate30d
+            expr: 1 - avg_over_time(up{job="python-monitor"}[30d])
+
+      - name: exporter-availability-slo-alerts
+        rules:
+          # Burns 2% of the 30d budget in 1h if sustained -> exhausted in ~2 days.
+          - alert: ExporterAvailabilityBurnRateFast
+            expr: |
+              slo:exporter_availability_errors:ratio_rate1h > (14.4 * 0.005)
+              and
+              slo:exporter_availability_errors:ratio_rate5m > (14.4 * 0.005)
+            for: 2m
+            labels:
+              severity: page
+              slo: exporter-availability
+            annotations:
+              summary: "Exporter availability: fast error-budget burn (14.4x)"
+              description: "1h error ratio is {{ $value | humanizePercentage }}. At this rate the 30-day error budget is exhausted in about 2 days."
+
+          # Burns 5% of the 30d budget in 6h if sustained -> exhausted in ~5 days.
+          - alert: ExporterAvailabilityBurnRateSlow
+            expr: |
+              slo:exporter_availability_errors:ratio_rate6h > (6 * 0.005)
+              and
+              slo:exporter_availability_errors:ratio_rate30m > (6 * 0.005)
+            for: 15m
+            labels:
+              severity: page
+              slo: exporter-availability
+            annotations:
+              summary: "Exporter availability: sustained error-budget burn (6x)"
+              description: "6h error ratio is {{ $value | humanizePercentage }}. At this rate the 30-day error budget is exhausted in about 5 days."
+
+          # Not urgent: worth a ticket, not a page.
+          - alert: ExporterAvailabilityBurnRateTicket
+            expr: |
+              slo:exporter_availability_errors:ratio_rate1d > (3 * 0.005)
+              and
+              slo:exporter_availability_errors:ratio_rate2h > (3 * 0.005)
+            for: 1h
+            labels:
+              severity: ticket
+              slo: exporter-availability
+            annotations:
+              summary: "Exporter availability: elevated error-budget burn (3x)"
+              description: "24h error ratio is {{ $value | humanizePercentage }}. Budget would be exhausted in about 10 days at this rate — investigate this week."
