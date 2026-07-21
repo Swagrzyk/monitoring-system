@@ -14,6 +14,8 @@ spec:
     repoURL: https://github.com/Swagrzyk/monitoring-system.git
     targetRevision: main
     path: k8s
+    directory:
+      recurse: true  # k8s/ has one subdirectory per component (exporter, prometheus, grafana)
 
   destination:
     server: https://kubernetes.default.svc
