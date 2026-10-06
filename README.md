@@ -1,5 +1,7 @@
 # monitoring-system
 
+[![CI](https://github.com/Swagrzyk/monitoring-system/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Swagrzyk/monitoring-system/actions/workflows/ci.yml)
+
 A small host monitoring stack: a Python exporter, Prometheus and Grafana. It can run as plain systemd services on a single machine, or on Kubernetes (kind) with the cluster state driven from git by ArgoCD and the cluster itself created with Terraform. Prometheus carries SLO-based alerts for the exporter's availability.
 
 The exporter (`python-apps/simple_monitor.py`) uses `psutil` and `prometheus-client` and exposes CPU, memory, disk and network metrics on port 8000.
@@ -10,12 +12,15 @@ The exporter (`python-apps/simple_monitor.py`) uses `psutil` and `prometheus-cli
 python-apps/    exporter source and Dockerfile
 prometheus/     config and unit files for the systemd setup
 scripts/        install/start scripts for the systemd setup
+  ci/             helper used by the CI pipeline
 k8s/            Kubernetes manifests (source of truth for ArgoCD)
   exporter/       Deployment, Service
   prometheus/     StatefulSet, PVC, scrape config and SLO rules
   grafana/        Deployment, Service, provisioned datasource and dashboard
 argocd/         ArgoCD Application pointing at k8s/
 terraform/      local kind cluster
+.github/        CI workflow
+docs/           notes on the CI pipeline
 ```
 
 ## Running with systemd
@@ -129,6 +134,20 @@ The short window paired with each long one makes the alert resolve soon after th
 The "Exporter SLO / Error Budget" dashboard is provisioned automatically ([k8s/grafana/configmap-dashboards.yaml](k8s/grafana/configmap-dashboards.yaml)). It shows current availability, remaining budget and burn rate next to the host metrics.
 
 Prometheus retention is set to 30d to match the SLO window. A `prometheus-config-reloader` sidecar watches the mounted ConfigMaps and calls `/-/reload`, so a rule change merged to `main` is picked up after ArgoCD syncs it, with no manual restart.
+
+## CI
+
+A GitHub Actions workflow ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push and pull request to `main`:
+
+| Job | Check |
+|---|---|
+| `lint-yaml` | `yamllint` on `k8s/`, `argocd/` and the workflow itself |
+| `prometheus-rules` | `promtool check rules` and `promtool check config` on the files unpacked from the ConfigMaps |
+| `k8s-manifests` | `kubeconform` schema validation of the manifests |
+| `docker-build` | `hadolint` on the Dockerfile, then an image build without push |
+| `terraform` | `terraform fmt -check` and `terraform validate` |
+
+These are static checks. Nothing is deployed and no cluster is involved, so they do not prove that the stack works once it is running. What each job covers and how to run it locally is described in [docs/CI.md](docs/CI.md) (in Polish).
 
 ## Known issues
 
