@@ -1,0 +1,17 @@
+extends: default
+
+rules:
+  # Alert descriptions and the embedded Grafana dashboard JSON have long
+  # lines that cannot be wrapped sensibly. Report them, but do not fail CI.
+  line-length:
+    max: 120
+    level: warning
+
+  # Every manifest here is a single-document file, where the leading "---"
+  # is optional. Style choice, not a correctness check.
+  document-start: disable
+
+  # YAML 1.1 parses the bare key `on` as boolean true. GitHub Actions
+  # workflows need `on:` as a key, so only check values, not keys.
+  truthy:
+    check-keys: false
