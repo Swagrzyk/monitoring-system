@@ -107,6 +107,8 @@ kubectl port-forward -n monitoring svc/prometheus 9090:9090
 
 Grafana is then at http://localhost:3000 (dashboard: "Exporter SLO / Error Budget") and Prometheus at http://localhost:9090.
 
+If the systemd setup is running on the same machine, ports 3000 and 9090 are already taken and `port-forward` fails with `address already in use`. Use different local ports instead, for example `3001:3000` and `9091:9090`.
+
 ## Metrics
 
 | Metric | Description |
@@ -155,4 +157,4 @@ In the container, `psutil.disk_partitions()` returns Docker's bind mounts (`/etc
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
