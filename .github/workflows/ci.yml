@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# The whole pipeline only reads the repository. Nothing here pushes images,
+# comments on PRs or touches the cluster, so the token gets nothing more.
+permissions:
+  contents: read
+
+# A new push to the same branch/PR cancels the run that is still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-yaml:
+    name: Lint YAML
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install yamllint
+        run: pip install yamllint==1.38.0
+
+      - name: Run yamllint
+        run: yamllint k8s/ argocd/ .github/workflows/ .yamllint
+
+  prometheus-rules:
+    name: Prometheus rules and config
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # Same version the cluster runs: k8s/prometheus/statefulset.yaml
+      PROMETHEUS_IMAGE: prom/prometheus:v2.55.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install PyYAML
+        run: pip install PyYAML==6.0.3
+
+      # Rebuild the directory layout the pod sees (config in /etc/prometheus,
+      # rules in /etc/prometheus/rules) so the rule_files glob in
+      # prometheus.yml resolves exactly as it does in the cluster.
+      - name: Extract config and rules from the ConfigMaps
+        run: |
+          python scripts/ci/extract-configmap.py k8s/prometheus/configmap.yaml "$RUNNER_TEMP/prometheus"
+          python scripts/ci/extract-configmap.py k8s/prometheus/configmap-rules.yaml "$RUNNER_TEMP/prometheus/rules"
+
+      - name: promtool check rules
+        run: |
+          docker run --rm \
+            -v "$RUNNER_TEMP/prometheus:/etc/prometheus:ro" \
+            --entrypoint sh "$PROMETHEUS_IMAGE" \
+            -c 'promtool check rules --lint-fatal /etc/prometheus/rules/*.yml'
+
+      - name: promtool check config (Kubernetes ConfigMap)
+        run: |
+          docker run --rm \
+            -v "$RUNNER_TEMP/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool "$PROMETHEUS_IMAGE" \
+            check config /etc/prometheus/prometheus.yml
+
+      - name: promtool check config (systemd variant)
+        run: |
+          docker run --rm \
+            -v "$PWD/prometheus:/legacy:ro" \
+            --entrypoint promtool "$PROMETHEUS_IMAGE" \
+            check config /legacy/prometheus.yml
+
+  k8s-manifests:
+    name: Kubernetes manifests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # -kubernetes-version matches the kind node image in terraform/variables.tf.
+      # The second -schema-location is a public catalog of CRD schemas, which
+      # is where the schema for the ArgoCD Application comes from.
+      - name: Run kubeconform
+        run: |
+          docker run --rm -v "$PWD:/work:ro" -w /work \
+            ghcr.io/yannh/kubeconform:v0.8.0 \
+            -strict \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.36.1 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary -verbose \
+            k8s/ argocd/
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Lint Dockerfile with hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.15.1 < python-apps/Dockerfile
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      # Build only: proves the Dockerfile and requirements.txt still produce
+      # an image. Nothing is pushed to a registry.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: python-apps
+          push: false
+          tags: monitoring-exporter:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e  # v4.0.1
+        with:
+          terraform_version: 1.15.8
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      # -backend=false: download the provider only, never touch any state.
+      - name: terraform init
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate
+        run: terraform validate -no-color
