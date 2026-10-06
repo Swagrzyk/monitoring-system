@@ -20,13 +20,15 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY simple_monitor.py .
 
-USER exporter
+# Numeric UID:GID so Kubernetes can verify runAsNonRoot without having to
+# resolve a user name from /etc/passwd inside the image.
+USER 10001:10001
 
 EXPOSE 8000
 
 # The exporter has no external dependencies (no DB, no upstream API), so
 # /metrics doubles as both liveness and readiness signal for this container.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/metrics', timeout=2)" || exit 1
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/metrics', timeout=2)"]
 
 ENTRYPOINT ["python", "simple_monitor.py"]
